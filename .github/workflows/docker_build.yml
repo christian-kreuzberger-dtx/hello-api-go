@@ -3,7 +3,7 @@ on: [push]
 jobs:
   build:
     # if: contains(github.ref, 'refs/tags/v')
-    name: Build Docker Images
+    name: Docker Build
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -18,22 +18,22 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
           # registry: docker.pkg.github.com
           repository: ${{ secrets.DOCKER_ORGANIZATION }}/hello-api-go
+          allow_pull_request: true
           file: Dockerfile
-          build_args: VERSION=${{ steps.get_version.outputs.VERSION }}
+          build_args: version=${{ steps.get_version.outputs.VERSION }}
           auto_tag: true
-
-  release:
-    needs: build
-    if: contains(github.ref, 'refs/tags/v')
-    name: Create GH Release
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v1
-      - name: Get the version
-        id: get_version
-        run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
-      - name: Create GitHub Release
+      - name: Docker Build Report
+        uses: unsplash/comment-on-pr@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          msg: |
+            Docker image available at https://hub.docker.com/r/${{ secrets.DOCKER_ORGANIZATION }}/hello-api-go
+            Use `docker run --rm ${{ steps.docker_build.outputs.tag }}` to run it
+            
+          check_for_duplicate_msg: true  # OPTIONAL
+      - name: Create GitHub Release # only if this is on a tag
+        if: contains(github.ref, 'refs/tags/v')
         id: create_release
         uses: actions/create-release@v1
         env:
@@ -45,4 +45,4 @@ jobs:
           prerelease: true
           body: |
             Docker image available at https://hub.docker.com/r/${{ secrets.DOCKER_ORGANIZATION }}/hello-api-go
-            Use `docker run --rm ${{ secrets.DOCKER_ORGANIZATION }}/hello-api-go:${{ steps.build.outputs.tag }}` to run it
+            Use `docker run --rm ${{ steps.docker_build.outputs.tag }}` to run it
