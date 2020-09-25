@@ -54,17 +54,22 @@ jobs:
             
           check_for_duplicate_msg: true  # OPTIONAL
       - name: Create GitHub Release # only if this is on a release- branch
-        if: contains(github.ref, 'refs/heads/release-')
+        if: contains('refs/heads/release-', github.head_ref)
         id: create_release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
+          tag_name: ${{ steps.get_version.outputs.VERSION }}
+          release_name: Release ${{ steps.get_version.outputs.VERSION }}
           draft: true
           prerelease: true
           body: |
             Docker image available at https://hub.docker.com/r/${{ secrets.DOCKER_ORGANIZATION }}/hello-api-go
 
             Image Name: `${{ secrets.DOCKER_ORGANIZATION }}/hello-api-go:${{ steps.get_version.outputs.VERSION }}`
+
+            Changelog:
+                - TBA1
+                - TBA2
+                - TBA3
