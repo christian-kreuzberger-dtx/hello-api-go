@@ -1,5 +1,5 @@
 name: Docker Build
-on: [push]
+on: [pull_request]
 jobs:
   build:
     # if: contains(github.ref, 'refs/tags/v')
@@ -8,9 +8,25 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v1
+      - name: Extract branch name
+        id: extract_branch
+        shell: bash
+        run: echo "##[set-output name=BRANCH;]$(echo ${GITHUB_HEAD_REF#refs/heads/})"
       - name: Get the version
         id: get_version
-        run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
+        env:
+            BRANCH: ${{ steps.extract_branch.outputs.BRANCH }}
+        shell: bash
+        run: echo "##[set-output name=VERSION;]$(echo ${BRANCH#"release-"})"
+      - name: Get current date
+        id: get_date
+        run: echo "::set-output name=DATE::$(date +'%Y%m%d')"
+      - name: Get current time
+        id: get_time
+        run: echo "::set-output name=TIME::$(date +'%H%M')"
+      - name: DEBUG 2
+        id: debug2
+        run: echo tags:${{ steps.get_version.outputs.VERSION }},${{ steps.get_version.outputs.VERSION }}-${{ steps.get_date.outputs.DATE }},${{ steps.get_version.outputs.VERSION }}-${{ steps.get_date.outputs.DATE }}.${{ steps.get_time.outputs.TIME }}
       - id: docker_build
         uses: jerray/publish-docker-action@v1.0.5
         with:
@@ -21,7 +37,8 @@ jobs:
           allow_pull_request: true
           file: Dockerfile
           build_args: version=${{ steps.get_version.outputs.VERSION }}
-          auto_tag: true
+          tags: ${{ steps.get_version.outputs.VERSION }},${{ steps.get_version.outputs.VERSION }}-${{ steps.get_date.outputs.DATE }},${{ steps.get_version.outputs.VERSION }}-${{ steps.get_date.outputs.DATE }}.${{ steps.get_time.outputs.TIME }}
+          # auto_tag: true
       - name: Docker Build Report
         uses: unsplash/comment-on-pr@master
         env:
@@ -30,13 +47,14 @@ jobs:
           msg: |
             Docker image available at https://hub.docker.com/r/${{ secrets.DOCKER_ORGANIZATION }}/hello-api-go
 
-            Image Name: `${{ steps.docker_build.outputs.tag }}`
-
-            Use `docker run --rm ${{ steps.docker_build.outputs.tag }}` to run it
+            Image Name: 
+            * `${{ secrets.DOCKER_ORGANIZATION }}/hello-api-go:${{ steps.get_version.outputs.VERSION }}`
+            * `${{ secrets.DOCKER_ORGANIZATION }}/hello-api-go:${{ steps.get_version.outputs.VERSION }}-${{ steps.get_date.outputs.DATE }}`
+            * `${{ secrets.DOCKER_ORGANIZATION }}/hello-api-go:${{ steps.get_version.outputs.VERSION }}-${{ steps.get_date.outputs.DATE }}.${{ steps.get_time.outputs.TIME }}`
             
           check_for_duplicate_msg: true  # OPTIONAL
-      - name: Create GitHub Release # only if this is on a tag
-        if: contains(github.ref, 'refs/tags/v')
+      - name: Create GitHub Release # only if this is on a release- branch
+        if: contains(github.ref, 'refs/heads/release-')
         id: create_release
         uses: actions/create-release@v1
         env:
@@ -49,6 +67,4 @@ jobs:
           body: |
             Docker image available at https://hub.docker.com/r/${{ secrets.DOCKER_ORGANIZATION }}/hello-api-go
 
-            Image Name: `${{ steps.docker_build.outputs.tag }}`
-
-            Use `docker run --rm ${{ steps.docker_build.outputs.tag }}` to run it
+            Image Name: `${{ secrets.DOCKER_ORGANIZATION }}/hello-api-go:${{ steps.get_version.outputs.VERSION }}`
