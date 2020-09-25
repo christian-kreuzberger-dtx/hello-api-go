@@ -29,6 +29,9 @@ jobs:
         with:
           msg: |
             Docker image available at https://hub.docker.com/r/${{ secrets.DOCKER_ORGANIZATION }}/hello-api-go
+
+            Image Name: `${{ steps.docker_build.outputs.tag }}`
+
             Use `docker run --rm ${{ steps.docker_build.outputs.tag }}` to run it
             
           check_for_duplicate_msg: true  # OPTIONAL
@@ -45,4 +48,7 @@ jobs:
           prerelease: true
           body: |
             Docker image available at https://hub.docker.com/r/${{ secrets.DOCKER_ORGANIZATION }}/hello-api-go
+
+            Image Name: `${{ steps.docker_build.outputs.tag }}`
+
             Use `docker run --rm ${{ steps.docker_build.outputs.tag }}` to run it
