@@ -1,0 +1,48 @@
+name: Docker Build
+on: [push]
+jobs:
+  build:
+    # if: contains(github.ref, 'refs/tags/v')
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v1
+      - name: Get the version
+        id: get_version
+        run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
+      - id: docker_build
+        uses: jerray/publish-docker-action@v1.0.5
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+          # registry: docker.pkg.github.com
+          repository: ${{ secrets.DOCKER_ORGANIZATION }}/hello-api-go
+          file: Dockerfile
+          build_args: VERSION=${{ steps.get_version.outputs.VERSION }}
+          auto_tag: true
+
+  release:
+    needs: build
+    if: contains(github.ref, 'refs/tags/v')
+    name: Create GH Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v1
+      - name: Get the version
+        id: get_version
+        run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: true
+          prerelease: true
+          body: |
+            Docker image available at https://hub.docker.com/r/${{ secrets.DOCKER_ORGANIZATION }}/hello-api-go
+            Use `docker run --rm ${{ secrets.DOCKER_ORGANIZATION }}/hello-api-go:${{ steps.build.outputs.tag }}` to run it
